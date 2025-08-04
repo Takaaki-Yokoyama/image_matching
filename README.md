@@ -1,158 +1,159 @@
-# 画像マッチングプロジェクト
+# 高精度画像マッチングシステム
 
-白黒画像の一部分から全体画像内での位置を特定するPythonプロジェクトです。
+白黒画像のテンプレートマッチングを行い、形状が少し違っていても白点の分布状態が似ていれば検出できる高精度なマッチングシステムです。
 
-## 機能
+## 特徴
 
-### 基本機能
-- **テンプレートマッチング**: OpenCVの各種テンプレートマッチング手法
-- **複数マッチ検出**: 閾値以上の全ての候補位置を検出
-- **結果可視化**: マッチング結果の視覚的表示
-
-### 高度な機能
-- **マルチスケールマッチング**: 異なるスケールでのマッチング
-- **回転不変マッチング**: 回転した画像でもマッチング可能
-- **エッジベースマッチング**: Cannyエッジ検出を使用
-- **特徴点ベースマッチング**: ORB、SIFTを使用した特徴点マッチング
-- **SSIM マッチング**: 構造類似性指標を使用
+- **5つの高精度マッチング手法**を実装
+- **柔軟な閾値設定**で検出精度を調整可能
+- **形状の違いに対応**した白点分布マッチング
+- **非最大抑制**による重複検出の除去
+- **可視化機能**でマッチング結果を確認
 
 ## インストール
 
 ```bash
-# 必要なライブラリをインストール
 pip install -r requirements.txt
 ```
 
 ## 使用方法
 
-### 1. 基本的な使用例
+### 基本的な使い方
 
 ```python
 from image_matching import ImageMatcher
 
-# マッチャーを初期化
 matcher = ImageMatcher()
 
 # 画像を読み込み
 main_img, template_img = matcher.load_images("main_image.png", "template_image.png")
 
-# マッチング実行
-result, best_loc, best_val = matcher.template_matching(main_img, template_img)
-print(f"最適位置: {best_loc}, 信頼度: {best_val}")
+# 高精度マッチングを実行
+matches = matcher.find_multiple_matches(
+    main_img, template_img,
+    method='FEATURE_DISTRIBUTION',  # 推奨手法
+    threshold=0.6,                  # 閾値（0.0-1.0）
+    use_advanced=True,              # 高精度手法を使用
+    step_size=2                     # 高速化のため
+)
 
-# 複数マッチを検出
-matches = matcher.find_multiple_matches(main_img, template_img, threshold=0.7)
+# 結果を表示
+for i, (x, y, confidence) in enumerate(matches):
+    print(f"マッチ {i+1}: 位置({x}, {y}), 信頼度: {confidence:.3f}")
 
 # 結果を可視化
 matcher.visualize_results(main_img, template_img, matches)
 ```
 
-### 2. 高度な手法を使用
+## マッチング手法
+
+### 1. FEATURE_DISTRIBUTION（特徴分布マッチング）
+- **用途**: 形状が違っても検出したい場合
+- **特徴**: 統計的特徴量による高精度マッチング
+- **推奨閾値**: 0.4-0.7
+- **適用例**: 手書き文字、ノイズのある画像
 
 ```python
-from advanced_matching import AdvancedImageMatcher
-
-matcher = AdvancedImageMatcher()
-
-# マルチスケールマッチング
-multi_matches = matcher.multi_scale_matching(main_img, template_img)
-
-# 回転不変マッチング
-rotation_matches = matcher.rotation_invariant_matching(main_img, template_img)
-
-# 手法比較
-results = matcher.compare_methods(main_img, template_img)
+matches = matcher.find_multiple_matches(
+    main_img, template_img,
+    method='FEATURE_DISTRIBUTION',
+    threshold=0.6,
+    use_advanced=True
+)
 ```
 
-### 3. デモ実行
+### 2. BINARY_PATTERN（二値パターンマッチング）
+- **用途**: 白点の分布パターンを重視
+- **特徴**: Jaccard係数による類似度計算
+- **推奨閾値**: 0.3-0.6
+- **適用例**: 点群データ、スキャン画像
+
+```python
+matches = matcher.find_multiple_matches(
+    main_img, template_img,
+    method='BINARY_PATTERN',
+    threshold=0.5,
+    use_advanced=True
+)
+```
+
+### 3. HISTOGRAM_CORRELATION（ヒストグラム相関）
+- **用途**: 明度分布の類似性を重視
+- **特徴**: ヒストグラム比較による高速マッチング
+- **推奨閾値**: 0.6-0.9
+- **適用例**: 一般的な画像マッチング
+
+### 4. EDGE_CORRELATION（エッジ相関）
+- **用途**: 輪郭パターンを重視
+- **特徴**: Sobelエッジ検出を使用
+- **推奨閾値**: 0.3-0.6
+- **適用例**: 境界線が重要な画像
+
+### 5. GRADIENT_CORRELATION（勾配相関）
+- **用途**: 勾配情報による詳細マッチング
+- **特徴**: 画像の勾配方向を比較
+- **推奨閾値**: 0.4-0.8
+- **適用例**: テクスチャ解析
+
+## パラメータ調整
+
+### 閾値（threshold）
+- **低い値（0.3-0.5）**: より多くのマッチを検出（偽陽性増加）
+- **高い値（0.7-0.9）**: 厳密なマッチのみ検出（偽陽性減少）
+
+### ステップサイズ（step_size）
+- **1**: 最高精度（処理時間長）
+- **2-4**: バランス型（推奨）
+- **5以上**: 高速処理（精度低下）
+
+## 実行例
 
 ```bash
-# 実践例とベンチマークを実行
-python demo.py
+# メインプログラム実行
+python image_matching.py
+
+# 使用例プログラム実行
+python example_usage.py
 ```
 
-## ファイル構成
+## 結果の解釈
 
-- `image_matching.py`: 基本的なマッチング機能
-- `advanced_matching.py`: 高度なマッチング手法
-- `demo.py`: 実践例とデモンストレーション
-- `requirements.txt`: 必要なライブラリ
+```
+検出されたマッチ数: 26
+  マッチ 1: 位置(110, 110), 信頼度: 1.000
+  マッチ 2: 位置(260, 170), 信頼度: 0.837
+  マッチ 3: 位置(255, 191), 信頼度: 0.837
+```
 
-## マッチング手法の説明
-
-### 1. テンプレートマッチング
-OpenCVの`matchTemplate`を使用した標準的な手法：
-- `TM_CCOEFF_NORMED`: 正規化相関係数
-- `TM_CCORR_NORMED`: 正規化相関
-- `TM_SQDIFF_NORMED`: 正規化二乗差
-
-### 2. マルチスケールマッチング
-テンプレートを異なるスケールでリサイズしてマッチング。
-サイズが異なる画像でも対応可能。
-
-### 3. 回転不変マッチング
-テンプレートを様々な角度で回転させてマッチング。
-回転した画像でも検出可能。
-
-### 4. エッジベースマッチング
-Cannyエッジ検出で輪郭を抽出してからマッチング。
-照明変化に強い。
-
-### 5. 特徴点ベースマッチング
-ORBやSIFTなどの特徴点を使用。
-幾何学変換に対してロバスト。
-
-## パフォーマンス比較
-
-| 手法 | 精度 | 速度 | ロバスト性 |
-|------|------|------|------------|
-| 標準テンプレート | 高 | 高 | 低 |
-| マルチスケール | 高 | 中 | 中 |
-| 回転不変 | 中 | 低 | 高 |
-| エッジベース | 中 | 高 | 中 |
-| 特徴点ベース | 高 | 低 | 高 |
-
-## 使用例のシナリオ
-
-1. **品質検査**: 製品の欠陥検出
-2. **医療画像**: X線やMRI画像での異常検出
-3. **監視システム**: 特定オブジェクトの検出
-4. **画像検索**: 類似画像の検索
-5. **ロボットビジョン**: オブジェクトの位置特定
+- **位置**: テンプレート画像の左上角の座標
+- **信頼度**: マッチングの確信度（0.0-1.0）
+- 信頼度順に並び、重複は自動的に除去
 
 ## トラブルシューティング
 
-### よくある問題
+### 検出されない場合
+1. 閾値を下げる（0.3-0.5）
+2. 異なる手法を試す
+3. step_sizeを1に設定
 
-1. **画像が読み込めない**
-   - ファイルパスが正しいか確認
-   - 画像ファイル形式をチェック
+### 偽陽性が多い場合
+1. 閾値を上げる（0.7-0.9）
+2. より厳密な手法を使用
+3. 非最大抑制の閾値を調整
 
-2. **マッチング精度が低い**
-   - 前処理（ガウシアンブラー、ヒストグラム平均化）を試す
-   - 異なるマッチング手法を試す
-   - 閾値を調整
+### 処理が遅い場合
+1. step_sizeを増やす（2-4）
+2. 画像サイズを縮小
+3. 閾値を上げて早期終了
 
-3. **処理が遅い**
-   - 画像サイズを縮小
-   - ステップサイズを大きくする
-   - より高速な手法を使用
+## ファイル構成
 
-### パラメータ調整のコツ
-
-- **閾値**: 0.7-0.9が一般的な範囲
-- **スケール範囲**: 0.5-2.0で調整
-- **回転角度**: 用途に応じて調整（通常は15-30度刻み）
-
-## 拡張性
-
-このプロジェクトは以下のように拡張できます：
-
-1. **新しいマッチング手法の追加**
-2. **リアルタイム処理の実装**
-3. **GUI インターフェースの追加**
-4. **機械学習ベースの手法の統合**
-
-## ライセンス
-
-このプロジェクトはMITライセンスの下で公開されています。
+```
+image_matching/
+├── image_matching.py      # メインクラス
+├── example_usage.py       # 使用例
+├── requirements.txt       # 依存パッケージ
+├── main_image.png        # サンプル全体画像
+├── template_image.png    # サンプルテンプレート画像
+└── README.md            # このファイル
+```
